@@ -1,36 +1,139 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>Importateur de Documents</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-  <script type="module" src="./app.js"></script>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #eef3fa;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-    }
-    h1 {
-      color: #3366cc;
-    }
-    input[type="file"] {
-      margin-top: 20px;
-    }
-    .status {
-      margin-top: 10px;
-      font-weight: bold;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Mon Cloud Perso</title>
+<script src="https://unpkg.com/@supabase/supabase-js"></script>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f4f6f8;
+    color: #333;
+  }
+  header {
+    background: #4CAF50;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+  }
+  main {
+    max-width: 800px;
+    margin: 20px auto;
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+  h2 {
+    border-bottom: 2px solid #eee;
+    padding-bottom: 5px;
+  }
+  input[type="file"] {
+    margin-top: 10px;
+  }
+  button {
+    background: #4CAF50;
+    border: none;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  button:hover {
+    background: #45a049;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+  }
+  .file-name {
+    flex: 1;
+    word-break: break-word;
+  }
+  a {
+    margin-left: 8px;
+    text-decoration: none;
+    font-size: 1.1em;
+  }
+  .actions button {
+    margin-left: 5px;
+    font-size: 0.9em;
+  }
+</style>
 </head>
 <body>
-  <h1>📁 Importer un Document</h1>
+
+<header>☁️ Mon Cloud Perso</header>
+<main>
+  <h2>📤 Envoyer un fichier</h2>
   <input type="file" id="fileInput" />
-  <div class="status" id="status"></div>
+  <button onclick="uploadFile()">Envoyer</button>
+
+  <h2>📂 Fichiers stockés</h2>
+  <div id="fileList"></div>
+</main>
+
+<script>
+  const SUPABASE_URL = "https://krmegvqgncmsskaxicwd.supabase.co";
+  const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtybWVndnFnbmNtc3NrYXhpY3dkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQ2NTY4MzAsImV4cCI6MjA3MDIzMjgzMH0.kqFeUdu1fPiDUmw9rGvTWMLgEvYiwULEI8x_-Nxisw8";
+  const BUCKET_NAME = "mes-fichiers";
+
+  const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  async function uploadFile() {
+    const file = document.getElementById("fileInput").files[0];
+    if (!file) return alert("📂 Choisis un fichier d'abord !");
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(file.name, file, { upsert: true });
+    if (error) alert("❌ Erreur : " + error.message);
+    else {
+      alert("✅ Fichier envoyé !");
+      listFiles();
+    }
+  }
+
+  async function listFiles() {
+    const { data, error } = await supabase.storage.from(BUCKET_NAME).list();
+    if (error) {
+      alert("❌ Erreur lors du chargement des fichiers : " + error.message);
+      return;
+    }
+    const listDiv = document.getElementById("fileList");
+    listDiv.innerHTML = "";
+    data.forEach((f) => {
+      const fileUrl = `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${encodeURIComponent(f.name)}`;
+      const div = document.createElement("div");
+      div.className = "file-item";
+      div.innerHTML = `
+        <span class="file-name">📄 ${f.name}</span>
+        <span class="actions">
+          <a href="${fileUrl}" target="_blank" title="Ouvrir le fichier">🔗</a>
+          <button onclick="deleteFile('${f.name}')">🗑 Supprimer</button>
+        </span>
+      `;
+      listDiv.appendChild(div);
+    });
+  }
+
+  async function deleteFile(fileName) {
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove([fileName]);
+    if (error) alert("❌ Erreur : " + error.message);
+    else {
+      alert("🗑 Fichier supprimé !");
+      listFiles();
+    }
+  }
+
+  // Liste les fichiers au chargement
+  listFiles();
+</script>
 </body>
 </html>
